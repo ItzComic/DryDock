@@ -17,5 +17,11 @@ else
 fi
 
 cd firmware
+
+echo "--- Erasing Flash ---"
+pio run --target erase --upload-port "$UPLOAD_PORT"
+
+echo "--- Uploading Firmware ---"
 pio run --target upload --upload-port "$UPLOAD_PORT"
+
 echo "--- Flash Complete ---"
