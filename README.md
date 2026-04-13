@@ -1,8 +1,8 @@
-# DryDock
+# <img src="https://github.com/ItzEarthy/DryDock/blob/main/static/Dry_dock.svg" width="200"> DryDock 
 
 **Smart filament storage and inventory management for 3D printing.**
 
-DryDock is an open-source system that combines an ESP32-based hardware unit with a Python/Flask web dashboard to give you real-time visibility into your filament supply and dry box environment. It tracks remaining filament weight by spool, monitors the temperature and humidity inside your dry storage, and keeps your Spoolman inventory up to date automatically — all from a local web interface that integrates cleanly with Klipper and Moonraker.
+DryDock is a web dashboard to give you real-time visibility into your filament supply and dry box environment. It helps you track remaining filament weight by spool, monitors the temperature and humidity inside your dry storage. It integrates seamlessly with [Spoolman](https://github.com/Donkie/Spoolman#integration-status) and [Klipper](https://github.com/klipper3d/klipper)/[Moonraker](https://github.com/arksine/moonraker)
 
 ---
 
@@ -34,26 +34,9 @@ Full wiring diagrams, pin assignments, and a complete bill of materials are avai
 
 ---
 
-## Quick Start
+## Instalation
 
-The steps below are a brief summary. **For the complete, step-by-step guide, see the [GitHub Wiki](https://github.com/ItzEarthy/DryDock/wiki).**
-
-1. **Clone the repository** onto your Raspberry Pi (or any Debian-based Linux host):
-   ```bash
-   git clone https://github.com/ItzEarthy/DryDock.git
-   cd DryDock
-   ```
-
-2. **Run the installer.** The `install.sh` script sets up all dependencies, the Python environment, the SQLite database, and a systemd service:
-   ```bash
-   bash install.sh
-   ```
-
-3. **Open the dashboard** in a browser at `http://<your-pi-ip>:5000` and complete the initial account setup.
-
-4. **Generate and flash the firmware.** Use the dashboard's built-in firmware generator to produce a pre-configured `.ino` file, then flash it to your ESP32 using `build_esp32.sh`.
-
-> **Note:** The steps above omit important details around hardware assembly, board selection, Spoolman configuration, and scale calibration. Follow the Wiki for the full walkthrough before attempting setup.
+Please see the Installation page on the [Wiki]() for details on how to install DryDock.
 
 ---
 
