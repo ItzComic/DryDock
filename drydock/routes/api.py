@@ -336,7 +336,12 @@ def get_system_health():
     settings = get_or_create(AppSettings)
     spoolman_ok, spoolman_msg = check_spoolman(settings.spoolman_url)
     db_ok, db_msg = check_database_status()
-    uptime = format_uptime(datetime.utcnow() - APP_START_TIME)
+    uptime = "Unknown"
+    try:
+        if APP_START_TIME:
+            uptime = format_uptime(datetime.utcnow() - APP_START_TIME)
+    except Exception:
+        uptime = "Unknown"
 
     from .dashboard import _sensor_status
 
