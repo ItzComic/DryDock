@@ -1,4 +1,6 @@
-# <img src="https://github.com/ItzEarthy/DryDock/blob/main/static/Dry_dock.svg" width="200"> DryDock 
+<img src="https://github.com/ItzEarthy/DryDock/blob/main/static/Dry_dock.svg" width="200"> 
+
+# DryDock 
 
 [![License](https://img.shields.io/github/license/ItzEarthy/DryDock)](https://github.com/ItzEarthy/DryDock/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/ItzEarthy/DryDock?style=flat)](https://github.com/ItzEarthy/DryDock/stargazers)
@@ -23,11 +25,16 @@ DryDock is a web dashboard that gives you real-time visibility into your filamen
 - **Temperature and humidity monitoring**  
   Dual AM2320 sensors measure conditions inside and outside the dry box. DryDock computes the humidity differential so you can tell whether your desiccant is still doing its job.
 
+  <img width="50%" height="557" alt="image" src="https://github.com/user-attachments/assets/a7ca87c8-0efc-4d99-ba94-15a0c963b0f1" />
+
 - **RFID spool identification**  
   An MFRC522 reader scans 13.56 MHz NFC tags attached to spools, so DryDock knows exactly which spool is being weighed—no manual selection needed.
 
 - **Spoolman integration**  
   After each scan-and-weigh cycle, DryDock can automatically update remaining weight in your Spoolman database over the local network.
+
+  <img width="50%" height="761" alt="image" src="https://github.com/user-attachments/assets/84511037-312d-45ba-86b2-ad547beb3129" />
+
 
 - **Klipper / Moonraker integration**  
   DryDock can be registered with Moonraker’s Update Manager, allowing updates directly from Mainsail or Fluidd.
