@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO, StringIO
 from pathlib import Path
 from statistics import mean
@@ -42,59 +42,85 @@ def _history_bucket_seconds(hours, aggregation):
     return 3600
 
 
-def build_history(logs, aggregation, hours, settings, calibration):
+def _as_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _utc_iso(dt: datetime) -> str:
+    return _as_utc(dt).isoformat().replace("+00:00", "Z")
+
+
+def _utc_ms(dt: datetime) -> int:
+    return int(_as_utc(dt).timestamp() * 1000)
+
+
+def _history_gap_threshold_seconds(hours, aggregation):
     bucket_seconds = _history_bucket_seconds(hours, aggregation)
-    buckets = {}
+    if bucket_seconds:
+        return max(bucket_seconds * 3, 15 * 60)
+    return 15 * 60
 
-    for log in logs:
-        if bucket_seconds:
-            epoch = int(log.timestamp.timestamp())
-            key = epoch - (epoch % bucket_seconds)
-        else:
-            key = f"{int(log.timestamp.timestamp() * 1000)}-{log.id}"
 
-        if key not in buckets:
-            buckets[key] = {
-                "timestamp": log.timestamp,
-                "temp_1": [],
-                "temp_2": [],
-                "hum_1": [],
-                "hum_2": [],
-                "weight": [],
-            }
-
-        row = buckets[key]
-        row["temp_1"].append(log.temp_1)
-        row["temp_2"].append(log.temp_2)
-        row["hum_1"].append(log.hum_1)
-        row["hum_2"].append(log.hum_2)
-        row["weight"].append(calculate_weight_grams(log.raw_adc, log.temp_1, calibration, settings))
-
-    ordered_keys = sorted(buckets.keys())
-    labels, hum_1, hum_2, temp_1, temp_2, weight = [], [], [], [], [], []
+def _build_history_payload(points, aggregation, hours, settings, calibration):
+    gap_threshold_ms = _history_gap_threshold_seconds(hours, aggregation) * 1000
+    labels = []
+    hum_1 = []
+    hum_2 = []
+    temp_1 = []
+    temp_2 = []
+    weight = []
     anomalies = []
+    series = {
+        "hum_1": [],
+        "hum_2": [],
+        "temp_1": [],
+        "temp_2": [],
+        "weight": [],
+        "anomalies": [],
+    }
 
-    agg_mode = "avg" if aggregation == "raw" else aggregation
-    for key in ordered_keys:
-        point = buckets[key]
-        ts = point["timestamp"]
-        labels.append(ts.isoformat())
-        h1 = _select_aggregate(point["hum_1"], agg_mode)
-        h2 = _select_aggregate(point["hum_2"], agg_mode)
-        t1 = _select_aggregate(point["temp_1"], agg_mode)
-        t2 = _select_aggregate(point["temp_2"], agg_mode)
-        w = _select_aggregate(point["weight"], agg_mode)
+    previous_ms = None
+    for point in points:
+        ts = point["timestamp"] if isinstance(point, dict) else point.timestamp
+        ts_ms = _utc_ms(ts)
+
+        if previous_ms is not None and ts_ms - previous_ms > gap_threshold_ms:
+            gap_ms = previous_ms + ((ts_ms - previous_ms) // 2)
+            separator = {"x": gap_ms, "y": None}
+            for name in ("hum_1", "hum_2", "temp_1", "temp_2", "weight"):
+                series[name].append(separator.copy())
+
+        labels.append(_utc_iso(ts))
+
+        h1 = point["hum_1"] if isinstance(point, dict) else point.hum_1
+        h2 = point["hum_2"] if isinstance(point, dict) else point.hum_2
+        t1 = point["temp_1"] if isinstance(point, dict) else point.temp_1
+        t2 = point["temp_2"] if isinstance(point, dict) else point.temp_2
+        raw_adc = point["raw_adc"] if isinstance(point, dict) else point.raw_adc
 
         hum_1.append(h1)
         hum_2.append(h2)
         temp_1.append(t1)
         temp_2.append(t2)
-        weight.append(w)
+        weight_value = calculate_weight_grams(raw_adc, t1, calibration, settings)
+        weight.append(weight_value)
+
+        series["hum_1"].append({"x": ts_ms, "y": h1})
+        series["hum_2"].append({"x": ts_ms, "y": h2})
+        series["temp_1"].append({"x": ts_ms, "y": t1})
+        series["temp_2"].append({"x": ts_ms, "y": t2})
+        series["weight"].append({"x": ts_ms, "y": weight_value})
 
         if h1 is not None and h2 is not None:
             delta = h2 - h1
             if delta < settings.humidity_threshold:
-                anomalies.append({"x": ts.isoformat(), "y": delta})
+                anomaly = {"x": ts_ms, "y": delta}
+                anomalies.append(anomaly)
+                series["anomalies"].append(anomaly)
+
+        previous_ms = ts_ms
 
     return {
         "labels": labels,
@@ -104,6 +130,7 @@ def build_history(logs, aggregation, hours, settings, calibration):
         "temp_2": temp_2,
         "weight": weight,
         "anomalies": anomalies,
+        "series": series,
         "threshold": settings.humidity_threshold,
     }
 
@@ -240,7 +267,7 @@ def live_snapshot_api():
             "raw_adc": latest.raw_adc if esp_ok else None,
             "tare_offset": round(calibration.tare_offset, 3),
             "rfid_uid": latest_uid_row.rfid_uid if latest_uid_row else "",
-            "timestamp": latest.timestamp.isoformat(),
+            "timestamp": _utc_iso(latest.timestamp),
         }
     )
 
@@ -270,7 +297,7 @@ def get_history():
         agg_map = {"avg": func.avg, "min": func.min, "max": func.max}
         agg_fn = agg_map.get(aggregation, func.avg)
 
-        rows = (
+        bucketed_rows = (
             db.session.query(
                 bucket_expr.label("bucket"),
                 agg_fn(SensorLog.temp_1).label("temp_1"),
@@ -285,45 +312,28 @@ def get_history():
             .all()
         )
 
-        labels, hum_1, hum_2, temp_1, temp_2, weight, anomalies = [], [], [], [], [], [], []
-        for row in rows:
-            ts = datetime.utcfromtimestamp(int(row.bucket))
-            labels.append(ts.isoformat())
+        rows = []
+        for row in bucketed_rows:
+            ts = datetime.fromtimestamp(int(row.bucket), tz=timezone.utc)
+            rows.append(
+                {
+                    "timestamp": ts,
+                    "hum_1": row.hum_1,
+                    "hum_2": row.hum_2,
+                    "temp_1": row.temp_1,
+                    "temp_2": row.temp_2,
+                    "raw_adc": row.raw_adc,
+                }
+            )
 
-            h1 = row.hum_1
-            h2 = row.hum_2
-            t1 = row.temp_1
-            t2 = row.temp_2
-            raw_adc = row.raw_adc
-
-            hum_1.append(h1)
-            hum_2.append(h2)
-            temp_1.append(t1)
-            temp_2.append(t2)
-            weight.append(calculate_weight_grams(raw_adc, t1, calibration, settings))
-
-            if h1 is not None and h2 is not None:
-                delta = h2 - h1
-                if delta < settings.humidity_threshold:
-                    anomalies.append({"x": ts.isoformat(), "y": delta})
-
-        history = {
-            "labels": labels,
-            "hum_1": hum_1,
-            "hum_2": hum_2,
-            "temp_1": temp_1,
-            "temp_2": temp_2,
-            "weight": weight,
-            "anomalies": anomalies,
-            "threshold": settings.humidity_threshold,
-        }
+        history = _build_history_payload(rows, aggregation, hours, settings, calibration)
     else:
         logs = (
             SensorLog.query.filter(SensorLog.timestamp >= since)
             .order_by(SensorLog.timestamp.asc())
             .all()
         )
-        history = build_history(logs, aggregation, hours, settings, calibration)
+        history = _build_history_payload(logs, aggregation, hours, settings, calibration)
 
     history["range"] = range_name
     history["aggregation"] = aggregation
