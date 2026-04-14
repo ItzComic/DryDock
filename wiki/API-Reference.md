@@ -135,18 +135,28 @@ Returns time-series sensor data for display in the dashboard charts.
 
 ```json
 {
-  "labels": ["2024-01-15T09:00:00", "2024-01-15T09:05:00"],
+  "labels": ["2024-01-15T09:00:00Z", "2024-01-15T09:05:00Z"],
   "hum_1": [35.2, 36.0],
   "hum_2": [58.7, 59.1],
   "temp_1": [22.5, 22.6],
   "temp_2": [24.1, 24.3],
   "weight": [312.45, null],
   "anomalies": [],
+  "series": {
+    "hum_1": [{"x": 1705318800000, "y": 35.2}],
+    "hum_2": [{"x": 1705318800000, "y": 58.7}],
+    "temp_1": [{"x": 1705318800000, "y": 22.5}],
+    "temp_2": [{"x": 1705318800000, "y": 24.1}],
+    "weight": [{"x": 1705318800000, "y": 312.45}],
+    "anomalies": []
+  },
   "threshold": 10.0,
   "range": "24h",
   "aggregation": "avg"
 }
 ```
+
+The `series` object contains Chart.js-ready `{x, y}` points in UTC milliseconds, with null separator points inserted when there is a long outage gap so the line visibly breaks. The `labels` array remains for backward compatibility and uses UTC timestamps with a `Z` suffix.
 
 The `anomalies` array contains `{x, y}` objects for each time point where the humidity delta (`hum_2 - hum_1`) fell below the configured threshold.
 

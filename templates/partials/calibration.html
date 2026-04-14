@@ -10,8 +10,14 @@
 
     <div class="p-3 rounded border text-sm border-edge bg-accent-soft">
         <div class="font-semibold mb-1">Reminder Status</div>
-        <div class="soft-text">Last calibration: {{ app_settings.last_calibration_at.strftime('%Y-%m-%d %H:%M') if
-            app_settings.last_calibration_at else "Never" }}</div>
+        <div class="soft-text">
+            Last calibration:
+            {% if app_settings.last_calibration_at %}
+            <span id="last-calibration" data-utc="{{ app_settings.last_calibration_at.isoformat() }}Z">{{ app_settings.last_calibration_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            {% else %}
+            Never
+            {% endif %}
+        </div>
         <div class="soft-text">Reminder interval: every {{ app_settings.calibration_reminder_days }} day(s)</div>
         <div class="mt-1 font-semibold {{ 'text-danger' if calibration_due else 'text-ok' }}">
             {% if calibration_due %}Calibration is due.{% else %}Calibration is up to date.{% endif %}
@@ -30,6 +36,20 @@
 
     <script>
     ;(function(){
+        const lastCalibration = document.getElementById('last-calibration');
+        if (lastCalibration && lastCalibration.dataset.utc) {
+            const parsed = new Date(lastCalibration.dataset.utc);
+            if (!Number.isNaN(parsed.getTime())) {
+                lastCalibration.textContent = parsed.toLocaleString([], {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        }
+
         const el = document.getElementById('cal-live-raw');
         if (!el) return;
         let t = null;

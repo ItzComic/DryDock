@@ -191,18 +191,42 @@
         }
         const data = await res.json();
 
-        const labels = (data.labels || []).map((iso) => {
-            const dt = new Date(iso);
-            return dt.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        const parseTimestamp = (value) => {
+            if (value === null || value === undefined || value === "") return null;
+            if (typeof value === "number") return value;
+            const text = String(value);
+            const normalized = /(Z|[+-]\d\d:\d\d)$/.test(text) ? text : `${text}Z`;
+            const parsed = new Date(normalized).getTime();
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+
+        const series = data.series || {};
+        const hum1 = Array.isArray(series.hum_1) ? series.hum_1 : [];
+        const hum2 = Array.isArray(series.hum_2) ? series.hum_2 : [];
+        const temp1 = Array.isArray(series.temp_1) ? series.temp_1 : [];
+        const temp2 = Array.isArray(series.temp_2) ? series.temp_2 : [];
+        const anomalyPoints = Array.isArray(series.anomalies) ? series.anomalies : [];
+        const thresholdValue = Number(data.threshold ?? 10);
+
+        const delta = hum2.map((point, i) => {
+            const left = hum1[i];
+            const right = point;
+            if (!left || !right || left.y === null || left.y === undefined || right.y === null || right.y === undefined) return null;
+            return {
+                x: right.x,
+                y: Number(right.y) - Number(left.y)
+            };
         });
 
-        const hum1 = data.hum_1 || [];
-        const hum2 = data.hum_2 || [];
-        const delta = hum2.map((v, i) => {
-            if (v === null || hum1[i] === null || v === undefined || hum1[i] === undefined) return null;
-            return Number(v) - Number(hum1[i]);
+        const threshold = hum1.map((point) => {
+            if (!point || point.x === null || point.x === undefined) return null;
+            return { x: point.x, y: thresholdValue };
         });
-        const threshold = labels.map(() => data.threshold || 10);
+
+        const formatPointLabel = (value) => {
+            const dt = new Date(value);
+            return dt.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        };
 
         const palette = {
             internal: cssVar("--ok") || "#3cb371",
@@ -219,22 +243,15 @@
         envChart = new Chart(document.getElementById("envChart").getContext("2d"), {
             type: "line",
             data: {
-                labels,
                 datasets: [
-                    { label: "Internal Hum %", data: hum1, borderColor: palette.internal, pointRadius: 0, tension: 0.18 },
-                    { label: "External Hum %", data: hum2, borderColor: palette.external, pointRadius: 0, tension: 0.18 },
-                    { label: "Humidity Delta %", data: delta, borderColor: palette.delta, borderDash: [7, 5], pointRadius: 0, tension: 0.15 },
-                    { label: "Threshold %", data: threshold, borderColor: palette.threshold, borderDash: [3, 4], pointRadius: 0, tension: 0 },
+                    { label: "Internal Hum %", data: hum1, borderColor: palette.internal, pointRadius: 0, tension: 0.18, spanGaps: false, parsing: false },
+                    { label: "External Hum %", data: hum2, borderColor: palette.external, pointRadius: 0, tension: 0.18, spanGaps: false, parsing: false },
+                    { label: "Humidity Delta %", data: delta, borderColor: palette.delta, borderDash: [7, 5], pointRadius: 0, tension: 0.15, spanGaps: false, parsing: false },
+                    { label: "Threshold %", data: threshold, borderColor: palette.threshold, borderDash: [3, 4], pointRadius: 0, tension: 0, spanGaps: false, parsing: false },
                     {
                         type: "scatter",
                         label: "Threshold Breach",
-                        data: (data.anomalies || []).map((point) => {
-                            const dt = new Date(point.x);
-                            return {
-                                x: dt.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-                                y: point.y
-                            };
-                        }),
+                        data: anomalyPoints,
                         pointRadius: 4,
                         pointHoverRadius: 5,
                         showLine: false,
@@ -249,7 +266,20 @@
                 interaction: { mode: "index", intersect: false },
                 scales: {
                     y: { grid: { color: palette.grid }, ticks: { color: palette.text } },
-                    x: { grid: { color: palette.grid }, ticks: { color: palette.text, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+                    x: {
+                        type: "linear",
+                        grid: { color: palette.grid },
+                        ticks: {
+                            color: palette.text,
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 10,
+                            callback: (value) => {
+                                const parsed = parseTimestamp(value);
+                                return parsed === null ? "" : formatPointLabel(parsed);
+                            }
+                        }
+                    },
                 },
                 plugins: {
                     legend: { labels: { color: palette.text } },
