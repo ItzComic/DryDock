@@ -74,6 +74,9 @@ Full wiring diagrams, pin assignments, and a complete bill of materials are avai
 
 The current setup uses a breadboard and jumper cables. A PCB and 3D-printed hardware are in the works.
 
+<img width="50%" height="" alt="Full setup" src="https://github.com/user-attachments/assets/b90c60d8-83a0-453f-b617-299f309558df" />
+<img width="50%" height="" alt="Part setup" src="https://github.com/user-attachments/assets/cd3a3084-eaff-4a72-9c14-993c97f4ee57" />
+
 ---
 
 ## Installation
