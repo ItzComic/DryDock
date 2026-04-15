@@ -1,6 +1,6 @@
 # Contributing to DryDock
 
-Thanks for checking out DryDock. I’m currently building and maintaining this solo. The goal is to make filament inventory health and weight tracking as seamless as possible for advanced multi-material setups, or just your personal collection.
+Thanks for checking out DryDock. I’m currently building and maintaining this solo. This initially started as a school-based embedded systems project, and I wanted to take it further as a fully fledged project. Please pardon any dust. The goal is to make filament inventory health and weight tracking as seamless as possible for advanced multi-material setups, or just your personal collection.
 
 Whether you're optimizing the frontend, refining the C++ for the ESP32-S3, or designing a better 3D-printed enclosure, your help is incredibly appreciated.
 
