@@ -1,0 +1,19 @@
+<div id="drydock-widget" class="bg-gray-900 text-white p-4 rounded border border-gray-700" style="max-width: 300px;">
+    <h3 class="font-bold mb-2">Filament Status</h3>
+    <div id="widget-content" hx-get="/api/live_snapshot" hx-trigger="load, every 5s" hx-swap="innerHTML">
+        <p class="text-sm">Loading...</p>
+    </div>
+</div>
+
+<script>
+document.getElementById('widget-content').addEventListener('htmx:afterSwap', (e) => {
+    const data = JSON.parse(e.detail.xhr.responseText);
+    e.detail.target.innerHTML = `
+        <div class="space-y-2 text-sm">
+            <p>Weight: ${data.weight?.toFixed(1) || 'N/A'} g</p>
+            <p>Temp: ${data.temp_1?.toFixed(1) || 'N/A'}°C</p>
+            <p>Humidity: ${data.hum_1?.toFixed(1) || 'N/A'}%</p>
+        </div>
+    `;
+});
+</script>

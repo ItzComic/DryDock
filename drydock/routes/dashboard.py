@@ -467,5 +467,16 @@ def build_firmware():
         mimetype="text/plain",
     )
 
+    #Add Wigget for the dashboard of Klipper
+@dashboard_bp.route("/widget")
+def klipper_widget():
+    return render_template("klipper_widget.html")
+
+
+@dashboard_bp.route("/test_widget")
+def test_widget():
+    """Mock Moonraker dashboard for testing widget integration"""
+    return render_template("test_widget.html")
+
 
 __all__ = ["dashboard_bp"]
